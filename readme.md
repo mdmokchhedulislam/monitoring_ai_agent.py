@@ -1,201 +1,348 @@
-চলো ভাই, এবার আমরা একটা বাস্তব Production-Level DevOps AI Automation Agent তৈরি করব, যেখানে AI নিজে কাজের সিদ্ধান্ত নিতে পারবে, কিন্তু গুরুত্বপূর্ণ কোনো কাজ Execute করার আগে মানুষের কাছ থেকে Email-এর মাধ্যমে Approval চাইবে।
+AI-Powered DevOps Automation Agent
+Production-Oriented Automation with LangChain, LangGraph, and Human-in-the-Loop (HITL)
+An AI-powered DevOps automation platform that monitors infrastructure,
+detects operational issues, proposes remediation plans, and executes
+approved actions only after explicit human authorization.
+Core principle: Let AI analyze and recommend. Let humans
+authorize. Let the system execute safely.
 
-এই Project-এ আমরা Human-in-the-Loop (HITL) implement করব LangChain এবং LangGraph দিয়ে।
+Table of Contents
+- Project Overview
+- Key Capabilities
+- Example Workflow
+- Architecture
+- Technology Stack
+- Project Structure
+- Human-in-the-Loop Approval
+- Security Principles
+- Development Roadmap
+- Future Enhancements
+- Getting Started
+- Project Goals
+Project Overview
+The AI-Powered DevOps Automation Agent is designed to combine
+infrastructure monitoring, AI-assisted analysis, and controlled
+remediation in one workflow.
 
-এটা DevOps + AI Engineering ক্যারিয়ারের জন্য খুবই গুরুত্বপূর্ণ একটি Project।
-Project: AI-Powered DevOps Automation Agent
-Production-oriented project
- LangChain + LangGraph
- Human-in-the-Loop
+The agent collects system metrics, identifies potential problems, and
+prepares remediation recommendations. For critical or potentially
+destructive operations, it pauses and requests approval through email
+before execution.
 
-1. আমরা কী তৈরি করব?
-ধরো, তোমার Linux server-এ Disk Usage 90% হয়ে গেছে।
+The project uses LangChain for LLM integration and tools,
+LangGraph for workflow orchestration and Human-in-the-Loop (HITL),
+and FastAPI for approval endpoints.
 
-আমাদের AI Agent:
-1. Server monitoring করবে।
-2. Disk usage 90% দেখলে সমস্যা শনাক্ত করবে।
-3. কী কী file cleanup করা নিরাপদ, সেটা Analyze করবে।
-4. একটি cleanup plan তৈরি করবে।
-5. তোমার Email-এ Approval Request পাঠাবে।
-6. তুমি Email থেকে Approve অথবা Reject করবে।
-7. Approve হলে তবেই cleanup script Execute হবে।
-8. Reject হলে কোনো destructive action হবে না।
-9. Execution শেষে Email-এ Report পাঠাবে।
-2. Complete Architecture
+This repository is being developed as a production-oriented project.
+Production readiness will require the security, persistence, testing,
+observability, and deployment work described in this README.
+Key Capabilities
+Infrastructure Monitoring
+- CPU utilization monitoring
+- Memory utilization monitoring
+- Disk usage monitoring
+- Docker container and image monitoring
+- Linux service health checks
+- Planned support for Windows services and hosts
+- Multi-server monitoring as a planned capability
+AI-Powered Analysis
+- Analyze collected system metrics
+- Identify abnormal resource utilization
+- Classify operational risk
+- Generate structured remediation recommendations
+- Propose actions without directly executing arbitrary commands
+Human Approval
+- Pause workflows when an action requires authorization
+- Send approval requests by email
+- Support Approve and Reject decisions
+- Resume the same LangGraph workflow after a valid decision
+- Record approval and execution outcomes
+Reporting and Auditability
+- Record workflow outcomes
+- Track approval decisions and timestamps
+- Send execution result notifications
+- Maintain server-wise alert and approval history as the platform
+  evolves
+Example Workflow
+Imagine a Linux server reaches 92% disk utilization.
 
-
-
-
-
-
-
-
-medium.com
-
-
-আমাদের Workflow হবে:
-1. DevOps Monitoring Agent
-
-CPU, RAM, Disk, Docker, Service Health
-
-
-2. AI Analysis — LangChain
-
-Problem detection and action planning
-
-
-3. Human Approval — LangGraph
-
-Workflow pauses and waits for approval
-
-
-Approved
-
-Execute action
-
-
-Rejected
-
-Stop workflow
-
-
-
-
-4. Email Notification & Audit Log
-
-Execution result, timestamp, approval history
-
-
-3. কোন কোন Technology ব্যবহার করব?
-Technology	কাজ
-Python	Main programming
-LangChain	LLM, prompts, tools
-LangGraph	Workflow orchestration
-FastAPI	Approval API
-SMTP / Gmail	Approval email
-SQLite / PostgreSQL	Approval history
-psutil	Server monitoring
-pathlib	File inspection
-Docker	Containerization
-Linux	Actual DevOps environment
-
-4. Project Folder Structure
-আমরা শুরু থেকেই Professional Structure অনুসরণ করব।
+The agent:
+1. Collects disk and system metrics.
+2. Detects that disk usage has crossed the configured threshold.
+3. Inspects relevant disk usage information.
+4. Identifies candidate cleanup actions and estimates potential
+   reclaimed space.
+5. Creates a structured remediation plan.
+6. Sends an approval request to the administrator.
+7. Pauses until a valid human decision is received.
+8. Executes the approved, allowlisted action---or performs no
+   destructive action if rejected.
+9. Records the result and sends a report.
+Example proposed action:
+docker image prune -f
+This command is an illustrative example. It must not be executed
+automatically just because an LLM proposed it. The application must
+validate the action against an allowlist, show the scope and impact to
+the approver, and require explicit authorization.
+Architecture
+```mermaid
+flowchart TD
+    A[Monitoring Agent] --> B[Collect System Metrics]
+    B --> C[AI Analysis - LangChain]
+    C --> D[Generate Structured Action Plan]
+    D --> E{Approval Required?}
+    E -->|No - Safe Read-Only Path| F[Return Monitoring Report]
+    E -->|Yes| G[LangGraph interrupt]
+    G --> H[Send Approval Email]
+    H --> I[FastAPI Approval Endpoint]
+    I --> J{Human Decision}
+    J -->|Approve| K[Validate Allowlisted Action]
+    K --> L[Execute Controlled Action]
+    J -->|Reject| M[Do Not Execute]
+    L --> N[Audit Log and Result Report]
+    M --> N
+    F --> N
+```
+Main Components
+1. Monitoring Agent --- collects infrastructure metrics and health
+   information.
+2. AI Analysis Engine (LangChain) --- interprets metrics and
+   proposes structured remediation plans.
+3. Workflow Orchestration (LangGraph) --- manages state, branching,
+   pausing, and resuming.
+4. Approval API (FastAPI) --- validates approval decisions and
+   connects them to the paused workflow.
+5. Email Service --- sends approval requests and execution reports.
+6. Persistence and Audit Layer --- stores workflow checkpoints,
+   approval history, and execution events.
+Technology Stack
+  Technology            Purpose
+  Python                Core programming language
+LangChain             LLM integration, prompts, and tools
+LangGraph             Workflow orchestration, state, and HITL
+FastAPI               Approval API and backend endpoints
+Gmail SMTP            Approval and result notifications
+SQLite / PostgreSQL   Application data and approval history
+psutil                System resource monitoring
+pathlib               File and directory inspection
+Docker                Containerization and deployment
+Linux                 Primary DevOps execution environment
+React                 Planned web dashboard
+JWT                   Planned authentication and authorization
+Project Structure
+The target modular structure is:
 devops-ai-agent/
+│monitoring_ai_agent/
 │
-├── app/
-│   ├── main.py
-│   ├── config.py
-│   │
-│   ├── agents/
-│   │   ├── monitoring_agent.py
-│   │   └── analysis_agent.py
-│   │
-│   ├── tools/
-│   │   ├── system_monitor.py
-│   │   ├── docker_monitor.py
-│   │   └── cleanup_tool.py
-│   │
-│   ├── workflows/
-│   │   └── devops_graph.py
-│   │
-│   ├── approvals/
-│   │   ├── email_service.py
-│   │   └── approval_api.py
-│   │
-│   └── database/
-│       └── models.py
+├── agent/
+│   └── router.py
+│
+├── api/
+│   ├── __init__.py
+│   └── webhook_server.py
+│
+├── core/
+│   ├── __init__.py
+│   ├── graph.py
+│   └── state.py
+│
+├── database/
+│
+├── nodes/
+│   ├── analyze_with_ai.py
+│   ├── evaluate_risk.py
+│   ├── execute_action.py
+│   ├── metrics_collection.py
+│   ├── reject_action.py
+│   ├── request_approval.py
+│   └── send_approval_email.py
+│
+├── services/
+│   ├── __init__.py
+│   ├── db_connection.py
+│   ├── email_service.py
+│   ├── email_template.py
+│   └── llm.py
 │
 ├── tests/
+│
+├── tools/
+│   ├── __init__.py
+│   └── system_monitor.py
+│
 ├── .env
-├── requirements.txt
-├── Dockerfile
-└── README.md
+├── .gitignore
+├── dockerfile
+├── main.py
+└── readme.md
 
 
-5. Human-in-the-Loop কীভাবে কাজ করবে?
-ধরো Agent এই Plan তৈরি করল:
-DevOps AI Agent
-Approval Required
+The repository may evolve as implementation progresses. Keep this
+structure aligned with the actual codebase.
+Human-in-the-Loop Approval
+LangGraph's interrupt() is used to pause a workflow when a human
+decision is required. After the approval endpoint validates the
+decision, Command(resume=...) resumes the same workflow thread.
+Approval lifecycle
+1. LangGraph reaches the approval step.
+2. The workflow pauses using interrupt().
+3. The application sends an approval email.
+4. The administrator opens the approval link and confirms the decision.
+5. FastAPI validates the signed token and request status.
+6. The application resumes the workflow using the same thread ID and
+   persistent checkpointer.
+7. The workflow follows the approved or rejected branch.
+8. The outcome is recorded and reported.
+Decision paths
+Approved
+- Validate the approval request and action.
+- Confirm that the action is allowlisted and its parameters are valid.
+- Resume the workflow.
+- Execute the approved action through a controlled tool.
+- Record the result.
+Rejected
+- Resume or conclude the workflow through the rejection branch.
+- Do not execute the proposed destructive action.
+- Record the rejection decision.
+A production implementation must also handle expired requests, duplicate
+clicks, invalid tokens, failed executions, interrupted email delivery,
+and application restarts.
+Security Principles
+Security is a core requirement, not a later add-on.
+- The LLM must never receive unrestricted shell execution access.
+- Only predefined, allowlisted operations may be executed.
+- Validate action names and parameters independently of the LLM
+  output.
+- Require explicit human approval for critical or destructive actions.
+- Use signed, expiring, single-use approval tokens.
+- Bind each approval to a specific request, action, parameters, and
+  workflow thread.
+- Use persistent LangGraph checkpointing so pending workflows can
+  survive restarts.
+- Use least-privilege operating-system permissions.
+- Start with dry-run execution and test against disposable
+  environments.
+- Store secrets in environment variables or a dedicated secrets
+  manager.
+- Never commit .env, credentials, private keys, or tokens.
+- Maintain audit records for requests, decisions, and execution
+  outcomes.
+- Protect approval endpoints with appropriate authentication,
+  authorization, rate limits, and CSRF protections where applicable.
+Development Roadmap
+The project will be developed incrementally, with practical
 
-Server Disk Cleanup Request
+implementation and testing at each stage.
+  Stage                   Focus                   Main Deliverables
+  Day 1                   System Monitoring       CPU, memory, disk,
+process, Docker, and
+service metrics
 
-Server: dev-server-01
-- Disk Usage: 92%
-- Docker unused images: 4
-- Estimated reclaimable space: 2 GB
-Proposed Action
+  Day 2                   LangChain Tools         Custom monitoring tools
+and tool calling
 
-docker image prune -f
+  Day 3                   LangGraph               StateGraph, nodes,
+edges, conditional
+routing, and
+checkpointer
 
-এই উদাহরণে Email-এ Approval Request যাবে।
-APPROVE
+  Day 4                   Email Integration       Gmail SMTP, approval
+templates, and result
+notifications
 
-REJECT
+  Day 5                   Human-in-the-Loop       interrupt(), approval
+decisions, and
+Command(resume=...)
 
+  Day 6                   FastAPI Integration     Approval endpoints,
+token validation, and
+workflow integration
+Day 7                   Production-Oriented     Docker, database
+Deployment              persistence, logging,
+audit trail, security,
+and end-to-end tests
+The schedule is a learning and implementation sequence; production
+hardening may require additional iterations.
+Future Enhancements
+  Feature                                 Priority
+Multiple server monitoring              High
+Linux and Windows support               High
+Secure authentication (JWT)             High
+React-based dashboard                   High
+Server-wise alert history               High
+Approval audit logs                     High
+Role-Based Access Control (RBAC)        High
+Docker-based deployment                 High
+Multi-tenant SaaS architecture          High
+Advanced monitoring and reporting       Medium
+Automated incident classification       Medium
+Slack / Microsoft Teams notifications   Medium
+Prometheus and Grafana integration      Medium
+Getting Started
+Prerequisites
+- Python 3.10 or a compatible version required by the selected
+  dependencies
+- Git
+- A Linux test host or a disposable Linux virtual machine for
+  infrastructure-action testing
+- Docker, if using Docker monitoring
+- Gmail SMTP credentials or an authorized SMTP service
+- An LLM provider API key, if using a hosted model
+1. Clone the repository
+git clone <your-repository-url>
+cd devops-ai-agent
+2. Create and activate a virtual environment
+Linux / macOS:
+python3 -m venv .venv
+source .venv/bin/activate
+Windows PowerShell:
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+3. Install dependencies
+pip install -r requirements.txt
+4. Configure environment variables
+Create a local .env file based on .env.example.
 
-এটি আমাদের কাঙ্ক্ষিত Email UI-এর একটি Mockup, এখনো কোনো বাস্তব Action চালাচ্ছে না।
+Example configuration keys (adapt them to the application's actual
+settings):
+APPROVAL_SECRET=replace_with_a_strong_random_secret
+APPROVAL_BASE_URL=http://127.0.0.1:8000
 
-এখানে সবচেয়ে গুরুত্বপূর্ণ বিষয়:
+GMAIL_USER=your_email@gmail.com
+GMAIL_APP_PASSWORD=your_gmail_app_password
 
-LangGraph-এর interrupt() ব্যবহার করে Workflow Pause করব।
+OPENAI_API_KEY=your_api_key
+Do not use these example values in production. Do not commit the real
+.env file.
+5. Run the application
+The exact startup commands depend on the implemented entry points. For a
+FastAPI application exposed as app in approval_server.py, a
+development server can be started with:
+uvicorn approval_server:app --host 127.0.0.1 --port 8000
+Run the workflow using the project's configured entry point. Confirm
+that the graph and approval API use the same compiled LangGraph
+application and persistent checkpointer.
+Important: This README describes the intended project
+architecture. Update the commands, environment variables, and folder
+tree to match the current implementation before treating them as
+definitive setup instructions.
 
-তারপর:
-- Approval না আসা পর্যন্ত execution বন্ধ থাকবে।
-- Email-এর Approve/Reject link FastAPI endpoint-এ যাবে।
-- LangGraph-এর Command(resume=...) দিয়ে Workflow আবার শুরু হবে।
-- Approved না হলে কোনো cleanup execution হবে না।
-আমরা LangGraph Checkpointer ব্যবহার করব, যাতে Server Restart হলেও Pending Approval-এর Workflow হারিয়ে না যায়।
+Project Goals
+The long-term goal is to build a secure, maintainable, and extensible
+DevOps automation platform that can:
+- Monitor multiple servers and environments.
+- Detect infrastructure issues using system metrics.
+- Use AI to analyze incidents and propose remediation plans.
+- Pause critical workflows for human authorization.
+- Execute only validated and approved actions.
+- Preserve workflow state across application restarts.
+- Provide centralized alerting, reporting, and audit history.
+- Support secure, containerized deployment.
+- Evolve toward a multi-tenant SaaS product.
+Project Status
+Development status: In progress
 
-একটি গুরুত্বপূর্ণ Security Rule: AI সরাসরি Shell Command execute করতে পারবে না। শুধু allowlisted action execute হবে। Approval token হবে signed, expiring এবং একবার ব্যবহারযোগ্য। প্রথমে সব action dry-run mode-এ পরীক্ষা করব।
-6. আমাদের Learning & Development Roadmap
-1. Day 1 — System Monitoring
-   
-   Python দিয়ে CPU, RAM, Disk এবং Docker monitoring।
-2. Day 2 — LangChain Tools
-   
-   Python functions-কে AI Agent-এর Tools হিসেবে ব্যবহার।
-3. Day 3 — LangGraph
-   
-   State, Nodes, Edges, Conditional Edges এবং Checkpointer।
-4. Day 4 — Email Integration
-   
-   Gmail SMTP দিয়ে Approval Request পাঠানো।
-5. Day 5 — Human-in-the-Loop
-   
-   interrupt() এবং Command(resume=...) দিয়ে approval workflow।
-6. Day 6 — FastAPI Integration
-   
-   Approve/Reject API তৈরি।
-7. Day 7 — Production Deployment
-   
-   Docker, PostgreSQL, logging, security এবং audit trail।
-7. আজকের প্রথম কাজ
-আমরা একদম Basic থেকে শুরু করব, কিন্তু প্রতিটি কোড Production Engineering-এর দৃষ্টিতে বুঝব।
-
-প্রথমে তোমার Linux server-এর System Monitoring Module তৈরি করব। তারপর সেটিকে LangChain Tool বানাব।
-
-একটা প্রশ্ন: Approval Email পাঠানোর জন্য কোনটি ব্যবহার করতে চাও?
-- Gmail SMTP (নিজের Gmail)
-- Company SMTP Server
-চাইলে আগামীকাল থেকে এই Project-এর প্রতিদিনের পরবর্তী Practical Lesson-ও আমি সাজিয়ে দিতে পারি।
-
-
-
-
-
-
-
-
-
-*****************next update ********************
-
-Feature	                        Priority
-Multiple server monitoring	      High
-Linux + Windows support	         High
-Secure authentication (JWT)	   High
-Dashboard (React)	               High
-Server-wise alert history	      High
-Approval audit logs	            High
-Role-based access control	      High
-Docker deployment	               High
+The project is being developed incrementally, starting with system
+monitoring and progressing toward AI-assisted analysis, email-based
+approval, persistent workflows, secure execution, and
+production-oriented deployment.
